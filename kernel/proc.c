@@ -661,3 +661,17 @@ procdump(void)
     printf("\n");
   }
 }
+
+// Count the number of processes whose state is not UNUSED for sysinfo.
+uint64
+procCount(void)
+{
+  int count = 0;
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    if (p->state != UNUSED)
+      count++;
+  }
+  return count;
+}

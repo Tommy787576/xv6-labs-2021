@@ -45,7 +45,7 @@ testmem() {
   
   sinfo(&info);
 
-  if (info.freemem!= n) {
+  if (info.freemem != n) {
     printf("FAIL: free mem %d (bytes) instead of %d\n", info.freemem, n);
     exit(1);
   }
@@ -83,7 +83,8 @@ testcall() {
     printf("FAIL: sysinfo failed\n");
     exit(1);
   }
-
+  printf("user info = %d\n", &info);
+  printf("user freemem = %d, nproc = %d\n", info.freemem, info.nproc);
   if (sysinfo((struct sysinfo *) 0xeaeb0b5b00002f5e) !=  0xffffffffffffffff) {
     printf("FAIL: sysinfo succeeded with bad argument\n");
     exit(1);
