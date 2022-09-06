@@ -81,6 +81,22 @@ int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  uint64 vAddr; // the starting virtual address
+  int numPages; // the number of pages to check
+  unsigned int* abits; // store the results into a bitmask
+  uint64 temp;
+
+  if (argaddr(0, &vAddr) < 0)
+    return -1;  
+  if (argint(1, &numPages) < 0)
+    return -1;
+  if (argaddr(2, &temp) < 0)
+    return -1;
+  abits = (unsigned int*)temp;
+  printf("kernel: vAddr = %d\n", vAddr);
+  printf("kernel: numPages = %d\n", numPages);
+  printf("kernel: abits = %d\n", abits);
+
   return 0;
 }
 #endif
