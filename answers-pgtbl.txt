@@ -1,0 +1,22 @@
+Which other xv6 system call(s) could be made faster using this shared page?
+Explain how.
+
+Some read-only system calls such as fstat or stat. Placing the info that have
+to return into the page table and set as read-only, then the user can access
+them directly without kernel crossing.
+
+Explain the output of vmprint in terms of Fig 3-4 from the text. What does 
+page 0 contain? What is in page 2? When running in user mode, could the 
+process read/write the memory mapped by page 1? What does the third to last
+page contain?
+
+Page 0 in the first level contains the page table entries indicating the 
+base physical addresses of the second level page table. Page 0 in the second 
+level contains the page table entries indicating the base physical addresses
+of the third level page table. Finally, Page 0 in the third level contains 
+the page table entries indicating the physical addresses of pages which
+we want to find.
+Page 2 just like Page 0 in the third level.
+No, we can't since PTE_U flag isn't set.
+The third to last page contains the physical addresses of pages which we want
+to find.
