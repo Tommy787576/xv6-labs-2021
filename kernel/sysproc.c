@@ -80,10 +80,9 @@ sys_sleep(void)
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
   uint64 vAddr; // the starting virtual address
   int numPages; // the number of pages to check
-  unsigned int* abits; // store the results into a bitmask
+  unsigned int abits = 0; // store the results into a bitmask
   uint64 temp;
 
   if (argaddr(0, &vAddr) < 0)
@@ -92,10 +91,23 @@ sys_pgaccess(void)
     return -1;
   if (argaddr(2, &temp) < 0)
     return -1;
-  abits = (unsigned int*)temp;
-  printf("kernel: vAddr = %d\n", vAddr);
-  printf("kernel: numPages = %d\n", numPages);
-  printf("kernel: abits = %d\n", abits);
+
+  for (int i = 0; i < numPages; i++) {
+    // use walk to get entries
+    pte_t* pte = walk(myproc()->pagetable, vAddr, 0); 
+    // check PTE_A and set abits
+    if (*pte & PTE_A) {
+      abits |= (1 << i);
+      *pte ^= PTE_A;
+    }
+    // go to the next page
+    vAddr += PGSIZE;
+    if (vAddr >= MAXVA)
+      break;
+  }
+  // copyout abits to address temp
+  if(copyout(myproc()->pagetable, temp, (char *)&abits, sizeof(abits)) < 0)
+    return -1;
 
   return 0;
 }
