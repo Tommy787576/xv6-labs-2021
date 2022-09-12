@@ -10,6 +10,7 @@ page 0 contain? What is in page 2? When running in user mode, could the
 process read/write the memory mapped by page 1? What does the third to last
 page contain?
 
+(For memory layout setting, please refer to memlayout.h!)
 Page 0 in the first level contains the page table entries indicating the 
 base physical addresses of the second level page table. Page 0 in the second 
 level contains the page table entries indicating the base physical addresses
