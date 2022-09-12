@@ -15,8 +15,8 @@ base physical addresses of the second level page table. Page 0 in the second
 level contains the page table entries indicating the base physical addresses
 of the third level page table. Finally, Page 0 in the third level contains 
 the page table entries indicating the physical addresses of pages which
-we want to find.
-Page 2 just like Page 0 in the third level.
-No, we can't since PTE_U flag isn't set.
-The third to last page contains the physical addresses of pages which we want
-to find.
+correspond to Text + Data segment of user address layout.
+Page 2 contains the page table entries indicating the physical addresses of
+pages which correspond to Stack segment of user address layout.
+Yes, we can since PTE_U flag is set.
+The third to last page contains USYSCALL, TRAPFRAME, and TRAMPOLINE.
