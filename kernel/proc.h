@@ -109,4 +109,7 @@ struct proc {
   int ticks;                   // Alarm interval
   uint64 funcAddr;             // Address of the handler function
   int ticksCount;              // How many ticks have passed since the last call
+  struct trapframe prevTrapFrame; // Previous trapframe before alarming
+  // flagForCall = 1: alarm is called and is waiting for return
+  int flagForCall;            
 };

@@ -142,6 +142,7 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   p->ticksCount = 0;
+  p->flagForCall = 0;
 
   return p;
 }
@@ -166,6 +167,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->ticksCount = 0;
+  p->flagForCall = 0;
 }
 
 // Create a user page table for a given process,

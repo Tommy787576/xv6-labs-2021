@@ -79,8 +79,11 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2) {
     p->ticksCount++;
-    if (p->ticksCount % p->ticks == 0)
+    if (p->ticksCount % p->ticks == 0 && p->flagForCall != 1) {
+      p->prevTrapFrame = *p->trapframe; // save the trapframe for resuming
       p->trapframe->epc = p->funcAddr;  // change user program counter to func
+      p->flagForCall = 1;
+    }
     yield();
   }
 
