@@ -67,9 +67,31 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 15) {       // Store page fault
+    pte_t *pte;
+    uint64 pa;
+    uint flags;
+    char *mem;
+    uint64 userVa = p->trapframe->epc; // User virtual address
+
+    if((pte = walk(p->pagetable, userVa, 0)) == 0)
+      panic("usertrap(): pte should exist");
+    if((*pte & PTE_V) == 0)
+      panic("usertrap(): page not present");
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    flags |= PTE_W; // Set PTE_W
+    // flags &= (~PTE_V);  // Clear PTE_V to avoid remap
+    if((mem = kalloc()) == 0) { // Allocate the new page
+      printf("usertrap(): no free memory, the process should be killed\n");
+      goto err;
+    }
+    memmove(mem, (char*)pa, PGSIZE);
+    mappages(p->pagetable, userVa, PGSIZE, (uint64)mem, flags);
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+  err:
     p->killed = 1;
   }
 
