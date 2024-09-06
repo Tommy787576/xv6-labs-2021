@@ -91,11 +91,7 @@ kalloc(void)
   return (void*)r;
 }
 
-int kcowcopy(uint64 va) {
-  // va must be PGSIZE aligned
-  // if ((va % PGSIZE) != 0)
-  //   return -1;
-  
+int kcowcopy(uint64 va) {  
   // safety check
   if (va >= MAXVA)
     return -1;
