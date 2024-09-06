@@ -309,7 +309,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
-    *pte = (*pte & ~PTE_W) | PTE_COW;
+    *pte = (*pte & ~PTE_W) | PTE_COW; // clear PTE_W in the PTEs of both child and parent 
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if(mappages(new, i, PGSIZE, pa, flags) != 0)
@@ -356,16 +356,21 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    // pte = walk(pagetable, va0, 0);
-    // pa0 = *pte;
     pa0 = walkaddr(pagetable, va0);
+    if (pa0 == 0)
+      return -1;
     pte = walk(pagetable, va0, 0);
+    if ((*pte & PTE_V) && (*pte & PTE_COW)) {
+      if (kcowcopy(va0) < 0)
+        return -1;
+    }
 
-    if ((*pte & PTE_V) && (*pte & PTE_COW))
-      kcowcopy(va0);
-
+    // be careful to first call kcowcopy then call walkaddr
+    // because kcowcopy may modify the physical address
+    pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
+
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

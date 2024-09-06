@@ -92,6 +92,14 @@ kalloc(void)
 }
 
 int kcowcopy(uint64 va) {
+  // va must be PGSIZE aligned
+  // if ((va % PGSIZE) != 0)
+  //   return -1;
+  
+  // safety check
+  if (va >= MAXVA)
+    return -1;
+
   struct proc *p = myproc();
   pte_t *pte;
   uint flags;
@@ -105,16 +113,12 @@ int kcowcopy(uint64 va) {
 
   pa = PTE2PA(*pte);
   flags = (PTE_FLAGS(*pte) | PTE_W) & ~PTE_COW;
-  if (refCount[PA2IDX(pa)] > 1) {
-    if((mem = kalloc()) == 0) { // Allocate the new page
-      printf("cowcopy: no free memory, the process should be killed\n");
-      return -1;
-    }
-    memmove(mem, (char*)pa, PGSIZE);
-    refCount[PA2IDX(pa)]--;
+  if((mem = kalloc()) == 0) { // Allocate the new page
+    printf("cowcopy: no free memory, the process should be killed\n");
+    return -1;
   }
-  else
-    mem = (char*)pa;
+  memmove(mem, (char*)pa, PGSIZE);
+  kfree(pa);
 
   uvmunmap(p->pagetable, PGROUNDDOWN(va), 1, 0);
   mappages(p->pagetable, va, 1, (uint64)mem, flags);
