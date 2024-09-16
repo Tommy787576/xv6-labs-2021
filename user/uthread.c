@@ -97,6 +97,8 @@ thread_create(void (*func)())
   t->state = RUNNABLE;
   // YOUR CODE HERE
   t->context.ra = (uint64)(func);
+  // stack grows from high address to low address
+  // so stack pointer points to high address initially
   t->context.sp = (uint64)(&t->stack[STACK_SIZE - 1]);
 }
 
