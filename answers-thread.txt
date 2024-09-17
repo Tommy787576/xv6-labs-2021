@@ -1,0 +1,13 @@
+thread_switch needs to save/restore only the callee-save registers. Why?
+
+Because callee-save registers should be stored by the function that is called to preserve the states across function calls, but caller-save registers do not guarantee this. If one wants to preserve the states of them, the caller-save registers should be saved by the function that calls others. This is the calling convension.
+
+The breakpoint may (or may not) be triggered before you even run uthread. How could that happen?
+
+I guess it may result from the file command. File command may overwrite the original symbols, which caused gdb to have a mismatch between the line of code program actually execute and the line it shows on the layout window. Some hints are:
+(1) After executing file user/_uthread, I cannot set the breakpoint at kernel/main.c
+(2) When I type ls command in the shell, it will also get into uthread on the gdb layout window, but the function still execute with no error.
+
+Why are there missing keys with 2 threads, but not with 1 thread? Identify a sequence of events with 2 threads that can lead to a key being missing. Submit your sequence with a short explanation in answers-thread.txt
+
+If two threads are in the line between 35 (e->next = n) and 36 (*p = e) at the same time, the first thread executes line 36 will be overwritten by the second thread which causes a key of the first thread being missing.

@@ -16,7 +16,7 @@ struct entry {
 struct entry *table[NBUCKET];
 int keys[NKEYS];
 int nthread = 1;
-
+pthread_mutex_t locks[NBUCKET];            // declare a lock
 
 double
 now()
@@ -41,12 +41,15 @@ void put(int key, int value)
 {
   int i = key % NBUCKET;
 
+  // acquire the lock of bucket i
+  pthread_mutex_lock(&locks[i]);
   // is the key already present?
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key)
       break;
   }
+  
   if(e){
     // update the existing key.
     e->value = value;
@@ -54,7 +57,8 @@ void put(int key, int value)
     // the new is new.
     insert(key, value, &table[i], table[i]);
   }
-
+  // release the lock of bucket i
+  pthread_mutex_unlock(&locks[i]);
 }
 
 static struct entry*
@@ -62,11 +66,16 @@ get(int key)
 {
   int i = key % NBUCKET;
 
-
+  // acquire the lock of bucket i
+  // pthread_mutex_lock(&locks[i]);
+  // should not mix put and get together
+  // so we do not have to worry this case
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key) break;
   }
+  // release the lock of bucket i
+  // pthread_mutex_unlock(&locks[i]);
 
   return e;
 }
@@ -104,7 +113,8 @@ main(int argc, char *argv[])
   pthread_t *tha;
   void *value;
   double t1, t0;
-
+  for (int i = 0; i < NBUCKET; i++)
+    pthread_mutex_init(&locks[i], NULL); // initialize the lock
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s nthreads\n", argv[0]);
@@ -121,6 +131,8 @@ main(int argc, char *argv[])
   //
   // first the puts
   //
+  // puts with multithread should have different keys
+  // since we cannot gaurantee the execution order of each thread
   t0 = now();
   for(int i = 0; i < nthread; i++) {
     assert(pthread_create(&tha[i], NULL, put_thread, (void *) (long) i) == 0);
