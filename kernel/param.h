@@ -9,7 +9,18 @@
 #define MAXOPBLOCKS  10  // max # of blocks any FS op writes
 #define LOGSIZE      (MAXOPBLOCKS*3)  // max data blocks in on-disk log
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
-#define FSSIZE       1000  // size of file system in blocks
+// https://github.com/mit-pdos/xv6-riscv/issues/59
+// to resolve test writebig: panic: balloc: out of blocks issue
+#ifdef LAB_FS
+#define FSSIZE       200000  // size of file system in blocks
+#else
+#ifdef LAB_LOCK
+#define FSSIZE       10000  // size of file system in blocks
+#else
+#define FSSIZE       2000   // size of file system in blocks
+#endif
+#endif
+// #define FSSIZE       1000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define BUCKETCNT    13    // bucket count of disk block cache
 #define BUCKETNBUF   (MAXOPBLOCKS*2)  // size of disk block cache per each bucket 
