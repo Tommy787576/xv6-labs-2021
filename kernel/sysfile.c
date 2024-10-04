@@ -322,12 +322,7 @@ sys_open(void)
   begin_op();
 
   if(omode & O_CREATE){
-    // if ((ip = namei(path)) != 0) {  // file exists: symlink
-    //   ip->type = T_FILE;
-    // }
-    // else {
     ip = create(path, T_FILE, 0, 0);
-    // }
     if(ip == 0){
       end_op();
       return -1;
@@ -517,87 +512,59 @@ sys_pipe(void)
 uint64
 sys_symlink(void)
 {
-  char name[DIRSIZ], name2[DIRSIZ], target[MAXPATH], path[MAXPATH];
-  struct inode *ip, *dp, *ip2, *dp2;
+  char name[DIRSIZ], target[MAXPATH], path[MAXPATH];
+  struct inode *ip, *dp;
 
   if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
     return -1;
-
-  // printf("%s %s\n", target, path);
   
   begin_op();
-  // open target
-  // if ((dp = nameiparent(target, name)) == 0) {
-  //   // if target parent directory not exists
-  //   end_op();
-  //   return -1;
-  // }
-  // if((ip = namei(target)) == 0){
-  //   // if target does not exist, then it still has to work
-  //   if((ip = ialloc(dp->dev, T_SYMLINK)) == 0)
-  //     panic("create: ialloc");
-  // }
-
-  // do not have to handle symbolic links to directories for this lab
-  // ilock(ip);
-  // if(ip->type == T_DIR){
-  //   iunlockput(ip);
-  //   end_op();
-  //   return -1;
-  // }
-
-  // ip->nlink++;
-  // iupdate(ip);
-  // iunlock(ip);
-
-  // open path
-  if((ip2 = namei(path)) != 0) {
+  if((ip = namei(path)) != 0) {
     // if path exists
-    goto bad2;
+    end_op();
+    return -1;
   }
-  if ((dp2 = nameiparent(path, name2)) == 0) {
-    // if path parent directory not exists
-    goto bad2;
+  // if ((dp = nameiparent(path, name)) == 0) {
+  //   // if parent directory of the path does not exist
+  //   end_op();
+  //   return -1;
+  // }
+
+  // if((ip = ialloc(dp->dev, T_SYMLINK)) == 0)
+  //   panic("create: ialloc");
+
+  // ilock(ip);
+  // ip->major = 0;
+  // ip->minor = 0;
+  // ip->nlink = 1;
+  // iupdate(ip);
+
+  ip = create(path, T_SYMLINK, 0, 0);
+  if (ip == 0) {
+    end_op();
+    return -1;
   }
 
-  if((ip2 = ialloc(dp2->dev, T_SYMLINK)) == 0)
-    panic("create: ialloc");
-
-  ilock(ip2);
-  // ip2->major = 0;
-  // ip2->minor = 0;
-  // ip2->nlink = 1;
-  // iupdate(ip2);
-
+  // ilock(ip);
   // link path to target
   struct symlinkent tmp;
   strncpy(tmp.name, target, MAXPATH);
-  if(writei(ip2, 0, (uint64)&tmp, 0, sizeof(tmp)) != sizeof(tmp))
+  if(writei(ip, 0, (uint64)&tmp, 0, sizeof(tmp)) != sizeof(tmp))
     panic("dirlink");
 
   // link directory and path
-  ilock(dp2);
-  // if(dp2->dev != ip2->dev || dirlink(dp2, name2, ip2->inum) < 0){
-  //   iunlock(dp2);
-  //   iunlock(ip2);
-  //   goto bad2;
+  // ilock(dp);
+  // if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
+  //   iunlock(dp);
+  //   iunlock(ip);
+  //   end_op();
+  //   return -1;
   // }
 
-  iunlockput(dp2);
-  iunlockput(ip2);
-  // iput(ip);
+  // iunlockput(dp);
+  iunlockput(ip);
 
   end_op();
 
   return 0;
-
-bad2:
-  end_op();
-  return -1;
-//   ilock(ip);
-//   ip->nlink--;
-//   iupdate(ip);
-//   iunlockput(ip);
-//   end_op();
-//   return -1;
 }
