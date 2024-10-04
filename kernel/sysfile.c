@@ -289,21 +289,22 @@ struct symlinkent {
 
 struct inode *getSymlinkIp(char *path, int omode) {
   struct inode *ip;
+  if((ip = namei(path)) == 0) {
+    return 0;
+  }
   uint cnt = 0;
-  do {
+  struct symlinkent tmp;
+  while (ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)) {
     cnt++;
-    if (cnt > 10)
+    if (cnt >= 10)  // cycle
       return 0;
-    if((ip = namei(path)) == 0) {
+    if(readi(ip, 0, (uint64)&tmp, 0, sizeof(tmp)) != sizeof(tmp)) // read the target
+      panic("getSymlinkIp readi fail");
+    strncpy(path, tmp.name, MAXPATH);
+    if((ip = namei(path)) == 0) { // get the linked inode
       return 0;
     }
-    if (ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)) {
-      struct symlinkent tmp;
-      if(readi(ip, 0, (uint64)&tmp, 0, sizeof(tmp)) != sizeof(tmp))
-        panic("getSymlinkIp readi fail");
-      strncpy(path, tmp.name, MAXPATH);
-    }
-  } while (ip->type == T_SYMLINK && !(omode & O_NOFOLLOW));
+  }
   return ip;
 }
 
@@ -524,46 +525,21 @@ sys_symlink(void)
     end_op();
     return -1;
   }
-  // if ((dp = nameiparent(path, name)) == 0) {
-  //   // if parent directory of the path does not exist
-  //   end_op();
-  //   return -1;
-  // }
 
-  // if((ip = ialloc(dp->dev, T_SYMLINK)) == 0)
-  //   panic("create: ialloc");
-
-  // ilock(ip);
-  // ip->major = 0;
-  // ip->minor = 0;
-  // ip->nlink = 1;
-  // iupdate(ip);
-
-  ip = create(path, T_SYMLINK, 0, 0);
+  ip = create(path, T_SYMLINK, 0, 0); // ip already locked
   if (ip == 0) {
     end_op();
     return -1;
   }
 
-  // ilock(ip);
   // link path to target
+  // record target in path's inode
   struct symlinkent tmp;
   strncpy(tmp.name, target, MAXPATH);
   if(writei(ip, 0, (uint64)&tmp, 0, sizeof(tmp)) != sizeof(tmp))
     panic("dirlink");
 
-  // link directory and path
-  // ilock(dp);
-  // if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
-  //   iunlock(dp);
-  //   iunlock(ip);
-  //   end_op();
-  //   return -1;
-  // }
-
-  // iunlockput(dp);
   iunlockput(ip);
-
   end_op();
 
   return 0;
