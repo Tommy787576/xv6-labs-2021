@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -67,6 +71,55 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 13 || r_scause() == 15) {
+    uint64 va = r_stval();
+
+    // check if va is valid or not
+    // va cannot exceed MAXVA, larger or equal to p->sz, or less than stack pointer address
+    if (va > MAXVA || va >= p->sz || va < p->trapframe->sp)
+      p->killed = 1;
+    else {
+      // find the corresponding vma id
+      struct vma *vmaPtr;
+      for (int i = 0; i < VMASIZE && vmaPtr == 0; i++) {
+        if (p->vma[i].used == 1 && va >= p->vma[i].addr && va < p->vma[i].addr + p->vma[i].length) 
+          vmaPtr = &p->vma[i];
+      }
+      if (vmaPtr == 0)
+        return 0;
+      
+      // allocate one 4096-byte page of physical memory
+      uint64 ka = (uint64)(kalloc());
+      if (ka == 0)
+        p->killed = 1;
+      else {
+        // set the inital values of the page
+        memset((void*)(ka), 0, PGSIZE);
+
+        va = PGROUNDDOWN(va);
+        // read from file
+        struct file *fp = vmaPtr->filePtr;
+        struct inode *ip = fp->ip;
+        ilock(vmaPtr->filePtr->ip);
+        // read a page from [va - vmaPtr->addr, va - vmaPtr->addr + PGSIZE)
+        // vmaPtr->offset is 0 in this lab
+        readi(ip, 0, ka, va - vmaPtr->addr, PGSIZE);
+        iunlock(vmaPtr->filePtr->ip);
+
+        // set the flags and page
+        int flags = PTE_U;
+        if ((vmaPtr->prot & PROT_READ) > 0)
+          flags |= PTE_R;
+        if ((vmaPtr->prot & PROT_WRITE) > 0)
+          flags |= PTE_W;
+        
+        // map the page
+        if (mappages(p->pagetable, va, PGSIZE, ka, flags) != 0) {
+          kfree((void*)(ka));
+          p->killed = 1;
+        }
+      }
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

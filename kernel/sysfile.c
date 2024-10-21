@@ -487,10 +487,81 @@ sys_pipe(void)
 
 uint64
 sys_mmap(void) {
-  return 0;
+  uint64 addr;
+  int length, prot, flags, fd, offset;
+  struct file *filePtr;
+  struct proc *p = myproc();
+
+  if (argaddr(0, &addr) < 0 || argint(1, &length) < 0 || argint(2, &prot) ||
+    argint(3, &flags) < 0 || argfd(4, &fd, &filePtr) < 0 || argint(5, &offset) < 0)
+    return -1;
+
+  // mmap doesn't allow read/write mapping of a file opened read-only
+  if(!filePtr->writable && (prot & PROT_WRITE) && flags == MAP_SHARED)
+    return -1;
+  
+  // find the empty vma
+  struct vma *vmaPtr;
+  for (int i = 0; i < VMASIZE && vmaPtr == 0; i++) {
+    if (p->vma[i].used == 0)
+      vmaPtr = &p->vma[i];
+  }
+  if (vmaPtr == 0)
+    panic("no empty vma");
+
+  // fill the information into the vma
+  length = PGROUNDUP(length);
+  vmaPtr->used = 1;
+  // map region: append to the end of process size
+  vmaPtr->addr = p->sz;
+  p->sz += length;
+  vmaPtr->length = length;
+  vmaPtr->prot = prot;
+  vmaPtr->flags = flags;
+  vmaPtr->fd = fd;
+  vmaPtr->offset = offset;
+  filedup(filePtr);
+  vmaPtr->filePtr = filePtr;
+
+  return vmaPtr->addr;
 }
 
 uint64
 sys_munmap(void) {
+  uint64 addr;
+  int length;
+
+  if (argaddr(0, &addr) < 0 || argint(1, &length) < 0)
+    return -1;
+  
+  struct vma *vmaPtr;
+  struct proc *p = myproc();
+  addr = PGROUNDDOWN(addr);
+  length = PGROUNDUP(length);
+
+  for (int i = 0; i < VMASIZE; i++) {
+    if (addr == p->vma[i].addr)
+      vmaPtr = &p->vma[i];
+  }
+  if (vmaPtr == 0)  // cannot find the corresponding vma
+    return 0;
+
+  // check if length is larger than vmaPtr->length
+  if (length > vmaPtr->length)
+    length = vmaPtr->length;
+  // update the vma base address and its length
+  vmaPtr->addr += length;
+  vmaPtr->length -= length;
+  // if MAP_SHARED, write [addr, addr + length) through the file system
+  if (vmaPtr->flags & MAP_SHARED)
+    filewrite(vmaPtr->filePtr, addr, length);
+  // unmap pages in [addr, addr + length)
+  uvmunmap(p->pagetable, addr, length / PGSIZE, 1);
+  // if there's no remaining pages in vma, release it
+  if (vmaPtr->length == 0) {
+    fileclose(vmaPtr->filePtr);
+    vmaPtr->used = 0;
+  }
+
   return 0;
 }

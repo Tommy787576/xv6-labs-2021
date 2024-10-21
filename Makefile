@@ -190,7 +190,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_mmaptest\
-
+	$U/_lazytests\
 
 
 ifeq ($(LAB),$(filter $(LAB), lock))

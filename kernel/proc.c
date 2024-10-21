@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -313,6 +314,14 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  // also copy the vma into the vma table of the new process
+  for (int i = 0; i < VMASIZE; i++) {
+    if (p->vma[i].used == 1) {
+      memmove(&np->vma[i], &p->vma[i], sizeof(p->vma[i]));
+      // remember to increase the file reference count
+      filedup(np->vma[i].filePtr);
+    }
+  }
   release(&np->lock);
 
   return pid;
@@ -350,6 +359,19 @@ exit(int status)
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;
+    }
+  }
+
+  // clear VMA of this process
+  // similar to sys_munmap(void)
+  for (int i = 0; i < VMASIZE; i++) {
+    if (p->vma[i].used == 1) {
+      struct vma *vmaPtr = &p->vma[i];
+      if (vmaPtr->flags & MAP_SHARED)
+        filewrite(vmaPtr->filePtr, vmaPtr->addr, vmaPtr->length);
+      uvmunmap(p->pagetable, vmaPtr->addr, vmaPtr->length / PGSIZE, 1);
+      fileclose(vmaPtr->filePtr);
+      vmaPtr->used = 0;
     }
   }
 
