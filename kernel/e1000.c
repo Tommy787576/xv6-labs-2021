@@ -135,19 +135,15 @@ e1000_recv(void)
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
   // printf("e1000_receive\n");
-  int check = 0;
-  while (1) {
-    check++;
-    int tail = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
-    if ((rx_ring[tail].status & E1000_RXD_STAT_DD) == 0) {
-        return;
-    }
+  int tail = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+  while ((rx_ring[tail].status & E1000_RXD_STAT_DD) != 0) {
     rx_mbufs[tail]->len = rx_ring[tail].length;
     net_rx(rx_mbufs[tail]);
     rx_mbufs[tail] = mbufalloc(0);
     rx_ring[tail].addr = (uint64)(rx_mbufs[tail]->head);
     rx_ring[tail].status = 0;
-    regs[E1000_RDT] = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+    regs[E1000_RDT] = tail;
+    tail = (tail + 1) % RX_RING_SIZE;
   }
 }
 
